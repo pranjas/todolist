@@ -211,9 +211,12 @@ func checkRequestHeaders(w *http.ResponseWriter, r *http.Request) bool {
 		requestHeaderValues, ok := r.Header[header.Name]
 		log.Printf("[%s] = %v", header.Name, requestHeaderValues)
 		//header not found but is required.
-		if !ok && header.Required {
-			result = false
-			goto out
+		if !ok {
+			if header.Required {
+				result = false
+				goto out
+			}
+			continue
 		}
 		//Support only the first value
 		//check of request header
