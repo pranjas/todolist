@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"todolist/database"
+	"todolist/environment"
+	"todolist/handlers/token"
 	"todolist/model"
 	"todolist/responses"
 	"todolist/utils"
@@ -61,7 +62,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		GenericWriteResponse(&w, &response)
 		return
 	}
-	connection, err := database.GetMongoConnection(os.Getenv(utils.MongoDBConnectionString))
+	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
 	if err != nil {
 		GenericInternalServerHeader(&w, r)
 		return
@@ -87,7 +88,14 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		Status:  http.StatusOK,
 		Message: "Login Successful",
 	}
+	bearerToken, err := token.GenerateToken(user, user.SignInType)
+	if err != nil {
+		goto out
+	}
+	w.Header().Add("Authorization", "Bearer "+bearerToken)
 	GenericWriteResponse(&w, &response)
+out:
+	GenericInternalServerHeader(&w, r)
 }
 
 func Register(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +122,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user.SignInType = model.WebLogin
-	connection, err := database.GetMongoConnection(os.Getenv(utils.MongoDBConnectionString))
+	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
 	if err != nil {
 		GenericInternalServerHeader(&w, r)
 		return
@@ -125,6 +133,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 			Status:  http.StatusOK,
 			Message: "User Registration Successful.",
 		}
+
 		GenericWriteResponse(&w, &response)
 		return
 	}
@@ -209,9 +218,9 @@ func checkRequestHeaders(w *http.ResponseWriter, r *http.Request) bool {
 	//and match the values.
 	for _, header := range expectedHeaders {
 		requestHeaderValues, ok := r.Header[header.Name]
-		log.Printf("[%s] = %v", header.Name, requestHeaderValues)
-		//header not found but is required.
+		//Request doesn't contains the header.
 		if !ok {
+			//header not found but is required.
 			if header.Required {
 				result = false
 				goto out

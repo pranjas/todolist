@@ -2,13 +2,12 @@ package main
 
 import (
 	"net/http"
-	"os"
+	"todolist/environment"
 	"todolist/handlers"
-	"todolist/utils"
 )
 
 func main() {
-	port := os.Getenv(utils.Port)
+	port := environment.GetPort()
 	http.HandleFunc("/login", handlers.Login)
 	http.HandleFunc("/register", handlers.Register)
 	http.HandleFunc("/user", handlers.User)
