@@ -1,6 +1,12 @@
 package utils
 
-import "context"
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	"github.com/pkg/errors"
+)
 
 const (
 	//HerokuForwardedProto gives the protocol used by a client
@@ -22,4 +28,24 @@ func (slice StringSlice) Contains(s string) bool {
 		}
 	}
 	return false
+}
+
+func GetRequestHeader(r *http.Request, header string) (string, error) {
+	requestHeaderValues, ok := r.Header[header]
+	if !ok {
+		return "", errors.Errorf("header %s not found", header)
+	}
+	return requestHeaderValues[0], nil
+}
+func GetRequestHeaderSubField(r *http.Request, header, subfield string) (string, error) {
+	requestHeaderValues, ok := r.Header[header]
+	if !ok {
+		return "", errors.Errorf("header %s not found", header)
+	}
+	for _, value := range requestHeaderValues {
+		if strings.Contains(value, subfield) {
+			return value, nil
+		}
+	}
+	return "", errors.New("Not Found")
 }

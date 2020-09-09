@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"log"
 	"todolist/database"
 	"todolist/utils"
@@ -28,9 +29,37 @@ type User struct {
 	Password   string                 `json:"pass"`
 }
 
+func GetLoginType(authProvider string) (LoginType, error) {
+	var err error
+	var loginType LoginType
+	switch authProvider {
+	case "google":
+		loginType = GoogleLogin
+	case "facebook":
+		loginType = FacebookLogin
+	case "twitter":
+		loginType = TwitterLogin
+	case "github":
+		loginType = GithubLogin
+	case "gitlab":
+		loginType = GitlabLogin
+	default:
+		err = errors.New("Unknown auth provider")
+	}
+	return loginType, err
+}
+
+func GetUser(dbClient *mongo.Client, id, password string) *User {
+	return __GetUser(dbClient, id, password, false)
+}
+
+func GetUserForId(dbClient *mongo.Client, id string) *User {
+	return __GetUser(dbClient, id, "", true)
+}
+
 //See if we can get a login Id and password
 //to match anything in the database.
-func GetUser(dbClient *mongo.Client, id, password string) *User {
+func __GetUser(dbClient *mongo.Client, id, password string, onlyId bool) *User {
 	u := &User{}
 	//Create a mongo query to find a user with
 	//matching id and password.
@@ -38,8 +67,10 @@ func GetUser(dbClient *mongo.Client, id, password string) *User {
 	//this is simple we use bson.M (map)
 	context := utils.GetContext()
 	query := bson.M{
-		"id":       id,
-		"password": password,
+		"id": id,
+	}
+	if !onlyId {
+		query["password"] = password
 	}
 	collection := database.GetUserCollection(dbClient)
 	err := collection.FindOne(context, query).Decode(u)
@@ -51,7 +82,7 @@ func GetUser(dbClient *mongo.Client, id, password string) *User {
 
 func AddUser(dbClient *mongo.Client, user *User) bool {
 	context := utils.GetContext()
-	if GetUser(dbClient, user.ID, user.Password) != nil {
+	if GetUserForId(dbClient, user.ID) != nil {
 		return false
 	}
 	collection := database.GetUserCollection(dbClient)

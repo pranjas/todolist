@@ -9,6 +9,7 @@ import (
 func main() {
 	port := environment.GetPort()
 	http.HandleFunc("/login", handlers.Login)
+	http.HandleFunc("/tptverify", handlers.TPTVerify)
 	http.HandleFunc("/register", handlers.Register)
 	http.HandleFunc("/user", handlers.User)
 	http.HandleFunc("/post/add", handlers.PostAdd)
