@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"todolist/handlers/token"
 	"todolist/responses"
+	"todolist/tptverify"
 	"todolist/utils"
 )
 
@@ -20,6 +22,11 @@ type requestHeadersRequired struct {
 	Values    []string
 	Required  bool
 	CheckerFn requestHeaderChecker
+}
+
+type RequestClaims struct {
+	Claims interface{}
+	tptverify.Verifier
 }
 
 //Authorization checker is a bit special we need to check
@@ -192,4 +199,40 @@ func checkRequestMethod(w *http.ResponseWriter, r *http.Request, method string) 
 		return false
 	}
 	return true
+}
+
+func VerifyBearerToken(request *http.Request) (*RequestClaims, responses.Response) {
+	var result = &RequestClaims{}
+	response := responses.Response{
+		Status:             http.StatusOK,
+		Message:            "",
+		APICode:            API_ERROR_CODE_OK,
+		APICodeDescription: ApiErrorCodeToString(API_ERROR_CODE_OK),
+	}
+	bearerToken := token.GetBearerToken(request)
+	authProvider, err := utils.GetRequestHeader(request, "X-Resource-Auth")
+	if err != nil {
+		log.Printf("Verifier is not third-party\n")
+		authProvider = tptverify.VERIFIER_US
+	}
+	provider, err := tptverify.GetVerifier(authProvider)
+	if err != nil {
+		response.Status = http.StatusBadRequest
+		response.APICode = API_ERROR_CODE_INVALID_INPUT
+		response.APICodeDescription = ApiErrorCodeToString(response.APICode)
+		log.Printf("Error = %s", err)
+		return result, response
+	}
+	result.Verifier = provider
+
+	claims, err := provider.Verify(bearerToken)
+	if err != nil {
+		response.Status = http.StatusBadRequest
+		response.APICode = API_ERROR_CODE_TOKEN_EXPIRED
+		response.APICodeDescription = ApiErrorCodeToString(response.APICode)
+		log.Printf("Error = %s", err)
+	} else {
+		result.Claims = claims
+	}
+	return result, response
 }

@@ -15,6 +15,8 @@ import (
 	"todolist/responses"
 	"todolist/tptverify"
 	"todolist/utils"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +162,7 @@ func TPTVerify(w http.ResponseWriter, r *http.Request) {
 	responseMap := provider.ResponseMap(claims)
 	response := responses.Response{
 		Status:  http.StatusOK,
-		Message: "Verified Google Token",
+		Message: fmt.Sprintf("Verified %s Token", provider.Name()),
 		Meta:    responseMap,
 	}
 	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
@@ -186,8 +188,8 @@ func TPTVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	user := model.GetUserForId(connection, userid)
 	if user != nil {
-		log.Printf("Google user with id %s already registered\n",
-			userid)
+		log.Printf("User with id %s already registered. From %s\n",
+			userid, provider.Name())
 		goto done
 	}
 	//Attempt to register this new user.
@@ -206,14 +208,134 @@ func User(w http.ResponseWriter, r *http.Request) {
 	GenericWriteHeader(&w, r, http.StatusNotImplemented)
 }
 
+func getUserID(w *http.ResponseWriter, r *http.Request) (bool, string) {
+	var ok bool
+	var userID string
+	var err error
+	if redirectToHTTPS(w, r) ||
+		!checkRequestMethod(w, r, http.MethodPost) ||
+		!checkRequestHeaders(w, r) {
+		log.Print("Missing headers\n")
+		return ok, userID
+	}
+	claims, response := VerifyBearerToken(r)
+	if claims.Claims == nil || claims.Verifier == nil {
+		log.Print("Couldn't verify bearer token\n")
+		GenericWriteResponse(w, &response)
+		return ok, userID
+	}
+	userID, err = claims.UserId(claims.Claims)
+	if err != nil {
+		log.Printf("UserID doesn't exist\n")
+		GenericBadRequest(w, "User ID doesn't exists")
+		return ok, userID
+	}
+	ok = true
+	return ok, userID
+}
+
+func postAddOrModify(w *http.ResponseWriter, r *http.Request, modify bool) {
+	ok, userID := getUserID(w, r)
+	if !ok {
+		log.Printf("Error extracting userID from request\n")
+		return
+	}
+	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
+	if err != nil {
+		log.Printf("Couldn't get MongoDB Connection\n")
+		GenericInternalServerError(w, "An Internal Server Error occured")
+		return
+	}
+	defer database.ReleaseMongoConnection(connection)
+
+	expected := model.TodoItem{}
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		GenericInternalServerHeader(w, r)
+		return
+	}
+	err = json.Unmarshal(bytes, &expected)
+	if err != nil {
+		GenericBadRequest(w, "json body contains unidentified members.")
+		return
+	}
+	user := model.GetUserForId(connection, userID)
+	if user == nil {
+		log.Printf("User %s not found\n", userID)
+		GenericResponseWithEC(w, "User not found", http.StatusNotFound, API_ERROR_CODE_INVALID_INPUT)
+		return
+	}
+	expected.Owner = userID
+	debugText := "add"
+	var op func(*model.TodoItem, *mongo.Client) bool
+	op = (*model.TodoItem).Add
+	if modify {
+		debugText = "modify"
+		op = (*model.TodoItem).Modify
+	}
+	if !op(&expected, connection) {
+		log.Printf("Couldn't %s ToDo Item for user %s", debugText, userID)
+		GenericInternalServerError(w, "A Server Error occured trying to modify / add TodoItem.")
+		return
+	}
+	log.Printf("%s a ToDo Item for user %s\n", debugText, userID)
+	GenericResponse(w, fmt.Sprintf("%s Todo Item succeeded", debugText), http.StatusOK)
+}
+
+//JSON body contains the Post data.
 func PostAdd(w http.ResponseWriter, r *http.Request) {
-	GenericWriteHeader(&w, r, http.StatusNotImplemented)
+	postAddOrModify(&w, r, false)
 }
 
-func PostRemove(w http.ResponseWriter, r *http.Request) {
-	GenericWriteHeader(&w, r, http.StatusNotImplemented)
-}
-
+//JSON body contains the Post data.
 func PostEdit(w http.ResponseWriter, r *http.Request) {
-	GenericWriteHeader(&w, r, http.StatusNotImplemented)
+	postAddOrModify(&w, r, true)
+}
+
+//JSON Body contains the POST ID
+//If the owner ID doesn't match this user's ID
+//then the post is attempted to be removed from the
+//shared with.
+func PostRemove(w http.ResponseWriter, r *http.Request) {
+	ok, userID := getUserID(&w, r)
+	if !ok {
+		log.Printf("Error extracting userID from request\n")
+		return
+	}
+	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
+	if err != nil {
+		log.Printf("Couldn't get MongoDB Connection\n")
+		GenericInternalServerError(&w, "An Internal Server Error occured")
+		return
+	}
+	defer database.ReleaseMongoConnection(connection)
+	expected := struct {
+		PostID string `json:"postid"`
+	}{}
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		GenericInternalServerHeader(&w, r)
+		return
+	}
+	err = json.Unmarshal(bytes, &expected)
+	if err != nil {
+		GenericBadRequest(&w, "json body contains unidentified members.")
+		return
+	}
+	dummyPostObj := model.TodoItem{
+		Owner: userID,
+		ID:    expected.PostID,
+	}
+	removedShared := false
+	if !dummyPostObj.Remove(connection) {
+		log.Printf("Item %s not owned by user %s", expected.PostID, userID)
+		if !dummyPostObj.RemoveFromShared(connection, userID) {
+			GenericBadRequest(&w, "Post not shared with user")
+			return
+		}
+		removedShared = true
+	}
+	log.Printf("Removed ToDo Item %s for user %s, is shared = %s\n",
+		expected.PostID, userID, removedShared)
+	GenericResponse(&w, "Removed ToDo Item", http.StatusOK)
 }

@@ -6,15 +6,22 @@ import (
 	"todolist/handlers/token"
 )
 
+const (
+	VERIFIER_NAME_GOOGLE = "Google-Verifier"
+)
+
 //Dummy Type that implements Verifier
 type GoogleVerifier struct {
 }
 
+func (gverifier *GoogleVerifier) Name() string {
+	return VERIFIER_NAME_GOOGLE
+}
 func (gverifier *GoogleVerifier) UserId(data interface{}) (string, error) {
 	var googleClaims *token.GoogleClaim
 	googleClaims, ok := data.(*token.GoogleClaim)
 	if !ok {
-		return "", errors.New("Not a GoogleClaim")
+		return "", errors.New("Not a Google Claim")
 	}
 	return googleClaims.Subject, nil
 }

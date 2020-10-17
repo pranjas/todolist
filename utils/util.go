@@ -4,9 +4,17 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 )
+
+type RawResource interface {
+}
+type Resource struct {
+	sync.Mutex
+	RawResource
+}
 
 const (
 	//HerokuForwardedProto gives the protocol used by a client
