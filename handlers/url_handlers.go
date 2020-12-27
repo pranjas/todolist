@@ -208,12 +208,12 @@ func User(w http.ResponseWriter, r *http.Request) {
 	GenericWriteHeader(&w, r, http.StatusNotImplemented)
 }
 
-func getUserID(w *http.ResponseWriter, r *http.Request) (bool, string) {
+func getUserID(w *http.ResponseWriter, r *http.Request, method string) (bool, string) {
 	var ok bool
 	var userID string
 	var err error
 	if redirectToHTTPS(w, r) ||
-		!checkRequestMethod(w, r, http.MethodPost) ||
+		!checkRequestMethod(w, r, method) ||
 		!checkRequestHeaders(w, r) {
 		log.Print("Missing headers\n")
 		return ok, userID
@@ -235,7 +235,7 @@ func getUserID(w *http.ResponseWriter, r *http.Request) (bool, string) {
 }
 
 func postAddOrModify(w *http.ResponseWriter, r *http.Request, modify bool) {
-	ok, userID := getUserID(w, r)
+	ok, userID := getUserID(w, r, http.MethodPost)
 	if !ok {
 		log.Printf("Error extracting userID from request\n")
 		return
@@ -297,7 +297,7 @@ func PostEdit(w http.ResponseWriter, r *http.Request) {
 //then the post is attempted to be removed from the
 //shared with.
 func PostRemove(w http.ResponseWriter, r *http.Request) {
-	ok, userID := getUserID(&w, r)
+	ok, userID := getUserID(&w, r, http.MethodPost)
 	if !ok {
 		log.Printf("Error extracting userID from request\n")
 		return
@@ -338,4 +338,48 @@ func PostRemove(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Removed ToDo Item %s for user %s, is shared = %s\n",
 		expected.PostID, userID, removedShared)
 	GenericResponse(&w, "Removed ToDo Item", http.StatusOK)
+}
+
+func PostGet(w http.ResponseWriter, r *http.Request) {
+	ok, userID := getUserID(&w, r, http.MethodGet)
+	if !ok {
+		log.Printf("Error extracting userID from request\n")
+		return
+	}
+	connection, err := database.GetMongoConnection(environment.GetMongoConnectionString())
+	if err != nil {
+		log.Printf("Couldn't get MongoDB Connection\n")
+		GenericInternalServerError(&w, "An Internal Server Error occured")
+		return
+	}
+	defer database.ReleaseMongoConnection(connection)
+	getShared := false
+	var off uint
+	var count uint
+	if shared, err := utils.GetRequestParam(r, "shared"); err == nil {
+		if shared == "1" {
+			getShared = true
+		}
+	}
+	if offset, err := utils.GetRequestParam(r, "offset"); err == nil {
+		off = utils.ToUint(offset)
+	}
+	if cnt, err := utils.GetRequestParam(r, "count"); err == nil {
+		count = utils.ToUint(cnt)
+	}
+	//get offset and count in request parameter
+	//return count, more and list of items
+
+	items, err := model.GetOwnerItems(connection, userID, getShared, off, count)
+	if err != nil {
+		GenericInternalServerError(&w, "Unable to process request.")
+		return
+	}
+	resp := responses.Response{
+		Status:  http.StatusOK,
+		APICode: API_ERROR_CODE_OK,
+		Message: "Items fetch complete",
+		Meta:    map[string]interface{}{"count": len(items), "items": items},
+	}
+	GenericWriteResponse(&w, &resp)
 }

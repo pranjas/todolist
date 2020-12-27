@@ -15,6 +15,7 @@ func main() {
 	http.HandleFunc("/post/add", handlers.PostAdd)
 	http.HandleFunc("/post/remove", handlers.PostRemove)
 	http.HandleFunc("/post/edit", handlers.PostEdit)
+	http.HandleFunc("/post/get", handlers.PostGet)
 	http.HandleFunc("/", handlers.GenericNotImplemented)
 	http.ListenAndServe(":"+port, nil)
 }

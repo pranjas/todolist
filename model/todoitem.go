@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type TodoItem struct {
@@ -133,13 +134,28 @@ func GetOneTodoItemForOwner(dbClient *mongo.Client, owner, todoItemID string) (*
 	return item, nil
 }
 
-func GetOwnerItems(dbClient *mongo.Client, owner string) ([]TodoItem, error) {
+func GetOwnerItems(dbClient *mongo.Client, owner string, getShared bool, off uint, count uint) ([]TodoItem, error) {
 	query := bson.M{
 		"owner": owner,
 	}
+	if getShared {
+		query["sharedwith"] = bson.D{{"$in", bson.A{owner}}}
+	}
+	//Create empty Find option
+	findOpts := options.Find()
+
+	//If we need to skip things add the relevant
+	//option.
+	if off > 0 {
+		findOpts.SetSkip(int64(off))
+	}
+	//Limit the total records
+	if count > 0 {
+		findOpts.SetLimit(int64(count))
+	}
 	context := utils.GetContext()
 	collection := database.GetTodoListCollection(dbClient)
-	cursor, err := collection.Find(context, query)
+	cursor, err := collection.Find(context, query, findOpts)
 	if err != nil {
 		log.Printf("No TodoItem found for owner %s", owner)
 		return nil, errors.Errorf("No TODO items found for owner %s", owner)
