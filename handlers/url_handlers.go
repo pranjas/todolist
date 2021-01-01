@@ -310,7 +310,7 @@ func PostRemove(w http.ResponseWriter, r *http.Request) {
 	}
 	defer database.ReleaseMongoConnection(connection)
 	expected := struct {
-		PostID string `json:"postid"`
+		PostID string `json:"id"`
 	}{}
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
