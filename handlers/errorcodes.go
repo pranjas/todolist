@@ -30,6 +30,8 @@ func ApiErrorCodeToString(errorCode int64) string {
 		return "invalid RSA key format"
 	case API_ERROR_CODE_NOT_IMPLEMENTED:
 		return "api is not currently implemented"
+	case API_ERROR_CODE_OK:
+		return "api execution was successful"
 	default:
 		return fmt.Sprintf("unknown error code %d", errorCode)
 	}
