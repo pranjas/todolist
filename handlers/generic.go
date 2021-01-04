@@ -39,12 +39,26 @@ func authorizationCheckerFunc(requestValues []string, possibleValues []string) b
 	return false
 }
 
+func contentTypeCheckerFunc(requestValues []string, possibleValues []string) bool {
+	//Check for application/json in Content-Type
+	//whose value is as Content-Type: application/json; charset=UT-8
+	reqValue := strings.Split(requestValues[0], ";")
+	for v := range reqValue {
+		for validValue := range possibleValues {
+			if v == validValue {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var headersRequired = map[string][]requestHeadersRequired{
 	http.MethodGet: {
-		{Name: "Content-Type", Values: []string{"application/json"}, Required: true},
+		{Name: "Content-Type", Values: []string{"application/json"}, Required: true, CheckerFn: contentTypeCheckerFunc},
 	},
 	http.MethodPost: {
-		{Name: "Content-Type", Values: []string{"application/json"}, Required: true},
+		{Name: "Content-Type", Values: []string{"application/json"}, Required: true, CheckerFn: contentTypeCheckerFunc},
 		{Name: "Authorization", Values: []string{"Bearer"}, Required: true, CheckerFn: authorizationCheckerFunc},
 		{Name: "X-Resource-Auth", Values: []string{""}, Required: false},
 	},
@@ -98,7 +112,7 @@ func GenericWriteResponse(w *http.ResponseWriter, resp *responses.Response) {
 		log.Printf("Error Marshalling response %s", resp)
 		return
 	}
-	(*w).Header().Set("Content-Type", "application/json")
+	(*w).Header().Set("Content-Type", "application/json; charset=UTF-8")
 	(*w).WriteHeader(resp.Status)
 	(*w).Write(respBytes)
 }
