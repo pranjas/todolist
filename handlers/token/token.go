@@ -84,6 +84,7 @@ func GenerateTokenWithTimeout(user *model.User, timeout int64, tokenType model.L
 
 func GetBearerToken(r *http.Request) string {
 	var bearerToken = ""
+	log.Printf("request headers for %s are %v \n", r.RequestURI, r.Header)
 	if r.Header != nil {
 		headerValues := r.Header["Authorization"]
 		if len(headerValues) > 0 {
@@ -93,6 +94,7 @@ func GetBearerToken(r *http.Request) string {
 			}
 		}
 	}
+	log.Printf("Bearer token is %s\n", bearerToken)
 	return bearerToken
 }
 

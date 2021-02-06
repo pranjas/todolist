@@ -356,6 +356,9 @@ func PostGet(w http.ResponseWriter, r *http.Request) {
 	getShared := false
 	var off uint
 	var count uint
+	var postID string
+	var items []model.TodoItem
+
 	if shared, err := utils.GetRequestParam(r, "shared"); err == nil {
 		if shared == "1" {
 			getShared = true
@@ -367,10 +370,19 @@ func PostGet(w http.ResponseWriter, r *http.Request) {
 	if cnt, err := utils.GetRequestParam(r, "count"); err == nil {
 		count = utils.ToUint(cnt)
 	}
+	if postID, err = utils.GetRequestParam(r, "postid"); err != nil {
+		log.Printf("Query parameter postid not found in request.")
+	}
 	//get offset and count in request parameter
 	//return count, more and list of items
-
-	items, err := model.GetOwnerItems(connection, userID, getShared, off, count)
+	if postID == "" {
+		items, err = model.GetOwnerItems(connection, userID, getShared, off, count)
+	} else {
+		todoItem, err := model.GetOneTodoItemForOwner(connection, userID, postID)
+		if err == nil {
+			items = append(items, *todoItem)
+		}
+	}
 	if err != nil {
 		GenericInternalServerError(&w, "Unable to process request.")
 		return
