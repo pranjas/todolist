@@ -160,10 +160,10 @@ func GetOwnerItems(dbClient *mongo.Client, owner string, getShared bool, off uin
 		log.Printf("No TodoItem found for owner %s", owner)
 		return nil, errors.Errorf("No TODO items found for owner %s", owner)
 	}
+	defer cursor.Close(context)
 	//We found something let's get it out.
 	var todoItems []TodoItem
 	err = cursor.All(context, &todoItems)
-	defer cursor.Close(context)
 	if err != nil {
 		log.Printf("Error iterating cursor: %v", err)
 		return nil, errors.Errorf("Couldn't decode TodoItems for owner %s", owner)
