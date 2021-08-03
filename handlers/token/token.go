@@ -180,13 +180,17 @@ check_again:
 			//which signed this token. Which certificate
 			//to use is identified by the "kid" field in
 			//token. (kid = key identifier)
-			publicCert = googleToken.certs[token.Header["kid"].(string)].(string)
-			publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicCert))
-			if err != nil {
-				log.Printf("Not a valid RSA Key %s\n", publicCert)
-				return nil, errors.New("Invalid RSA key found")
+			publicCert, ok := googleToken.certs[token.Header["kid"].(string)].(string)
+			if ok {
+				publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicCert))
+				if err != nil {
+					log.Printf("Not a valid RSA Key %s\n", publicCert)
+					return nil, errors.New("Invalid RSA key found")
+				}
+				return publicKey, nil
 			}
-			return publicKey, nil
+			return nil, fmt.Errorf("provided token doesn't contain current kid",
+				token.Header["kid"].(string))
 		})
 	if err != nil {
 		log.Printf("error parsing %v\n", err)
