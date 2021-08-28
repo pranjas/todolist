@@ -168,5 +168,6 @@ func GetOwnerItems(dbClient *mongo.Client, owner string, getShared bool, off uin
 		log.Printf("Error iterating cursor: %v", err)
 		return nil, errors.Errorf("Couldn't decode TodoItems for owner %s", owner)
 	}
+	log.Printf("Sending todoItems as : %v", todoItems)
 	return todoItems, nil
 }
