@@ -335,7 +335,7 @@ func PostRemove(w http.ResponseWriter, r *http.Request) {
 		}
 		removedShared = true
 	}
-	log.Printf("Removed ToDo Item %s for user %s, is shared = %s\n",
+	log.Printf("removed ToDo Item %s for user %s, is shared = %t\n",
 		expected.PostID, userID, removedShared)
 	GenericResponse(&w, "Removed ToDo Item", http.StatusOK)
 }

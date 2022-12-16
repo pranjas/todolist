@@ -49,13 +49,13 @@ type GoogleClaim struct {
 	jwt.StandardClaims
 	//The following seven fields are available if the user has
 	//granted the profile and email OAuth Scopes
-	Email         string `json:"email",omitempty`
-	EmailVerified bool   `json:"email_verified",omitempty`
-	Name          string `json:"name",omitempty`
-	PictureURL    string `json:"picture",omitempty`
-	Firstname     string `json:"given_name",omitempty`
-	Lastname      string `json:"family_name",omitempty`
-	Locale        string `json:"locale",omitempty`
+	Email         string `json:"email,omitempty"`
+	EmailVerified bool   `json:"email_verified,omitempty"`
+	Name          string `json:"name,omitempty"`
+	PictureURL    string `json:"picture,omitempty"`
+	Firstname     string `json:"given_name,omitempty"`
+	Lastname      string `json:"family_name,omitempty"`
+	Locale        string `json:"locale,omitempty"`
 }
 
 func getSigningKey() string {
@@ -185,21 +185,21 @@ check_again:
 				publicKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicCert))
 				if err != nil {
 					log.Printf("Not a valid RSA Key %s\n", publicCert)
-					return nil, errors.New("Invalid RSA key found")
+					return nil, errors.New("invalid RSA key found")
 				}
 				return publicKey, nil
 			}
-			return nil, fmt.Errorf("provided token doesn't contain current kid",
+			return nil, fmt.Errorf("provided token doesn't contain current kid %s",
 				token.Header["kid"].(string))
 		})
 	if err != nil {
 		log.Printf("error parsing %v\n", err)
 		log.Printf("token = %v\n", token)
-		return nil, errors.New("Invalid google token")
+		return nil, errors.New("invalid google token")
 	}
 	if claims, ok := token.Claims.(*GoogleClaim); ok && token.Valid {
 		log.Printf("Claims are valid %v", claims)
 		return &googleClaim, nil
 	}
-	return nil, errors.New("Invalid google token")
+	return nil, errors.New("invalid google token")
 }

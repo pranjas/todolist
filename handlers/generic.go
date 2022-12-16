@@ -33,10 +33,7 @@ type RequestClaims struct {
 //if Bearer is present.
 func authorizationCheckerFunc(requestValues []string, possibleValues []string) bool {
 	reqValue := strings.Split(requestValues[0], " ")[0]
-	if reqValue == possibleValues[0] {
-		return true
-	}
-	return false
+	return reqValue == possibleValues[0]
 }
 
 func contentTypeCheckerFunc(requestValues []string, possibleValues []string) bool {
@@ -109,7 +106,7 @@ func GenericWriteResponse(w *http.ResponseWriter, resp *responses.Response) {
 	respBytes, err := json.Marshal(*resp)
 	if err != nil {
 		(*w).WriteHeader(http.StatusInternalServerError)
-		log.Printf("Error Marshalling response %s", resp)
+		log.Printf("error Marshalling response %v", resp)
 		return
 	}
 	(*w).Header().Set("Content-Type", "application/json; charset=UTF-8")

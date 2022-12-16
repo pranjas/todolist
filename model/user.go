@@ -24,7 +24,7 @@ const (
 type User struct {
 	//This is a unique field.
 	ID         string                 `json:"id"`
-	Meta       map[string]interface{} `json:"extra",omitempty  bson:"extra",omitempty`
+	Meta       map[string]interface{} `json:"extra,omitempty"  bson:"extra,omitempty"`
 	SignInType LoginType              `json:"-" bson:"type"`
 	Password   string                 `json:"pass"`
 }
@@ -44,7 +44,7 @@ func GetLoginType(authProvider string) (LoginType, error) {
 	case "gitlab":
 		loginType = GitlabLogin
 	default:
-		err = errors.New("Unknown auth provider")
+		err = errors.New("unknown auth provider")
 	}
 	return loginType, err
 }
